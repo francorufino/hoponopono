@@ -1,6 +1,6 @@
 # Ho'oponopono
 
-Prática guiada pela voz. A tela mostra as quatro frases. O aplicativo escuta você falando e conta os blocos. O sinal soa a cada dez blocos.
+Prática guiada pela voz. A tela mostra as quatro frases. O aplicativo escuta você falando e conta os blocos. O sinal soa a cada dez blocos. Nas 108, soa um sinal mais longo: pode parar.
 
 1. Sinto muito
 2. Me perdoe

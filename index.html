@@ -171,6 +171,18 @@
     }
 
     #wash.on { animation: wash 0.95s ease-out; }
+    #wash.on.final { animation-duration: 1.8s; }
+
+    .done {
+      display: none;
+      margin: 1rem 0 0;
+      font-size: clamp(2rem, 6vw, 2.8rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .done.show { display: block; }
 
     @keyframes blink {
       0%, 100% { opacity: 1; }
@@ -194,7 +206,7 @@
   <main id="app">
     <p class="kicker">Sinal a cada dez blocos</p>
     <h1>Ho'oponopono</h1>
-    <p class="lede">Fale as quatro frases, nesta ordem, e siga direto. O sinal soa a cada dez blocos.</p>
+    <p class="lede">Fale as quatro frases, nesta ordem, e siga direto. O sinal soa a cada dez blocos. Nas 108, o sinal muda: pode parar.</p>
     <ol class="phrases" id="phrases">
       <li class="now"><i></i>Sinto muito</li>
       <li><i></i>Me perdoe</li>
@@ -203,12 +215,14 @@
     </ol>
     <p class="status"><span class="live" aria-hidden="true"></span><span id="status">Toque em escutar e permita o microfone.</span></p>
     <p class="heard" id="heard"></p>
+    <p class="done" id="done">Pode parar.</p>
     <p class="count" id="count">0 blocos</p>
     <button type="button" class="start" id="toggle">Escutar</button>
   </main>
   <script>
-    // Fase 2: sinal a cada 10 blocos. No fim, muda para 108.
+    // Sino curto a cada 10 blocos. Nas 108, um sinal mais longo: pode parar.
     const SIGNAL_EVERY = 10;
+    const TOTAL = 108;
 
     const STEPS = [
       [/sinto muito/, /cento muito/, /cinco muito/, /cinto muito/, /sinto munto/],
@@ -221,6 +235,7 @@
     const statusEl = document.getElementById('status');
     const heardEl = document.getElementById('heard');
     const countEl = document.getElementById('count');
+    const doneEl = document.getElementById('done');
     const toggleBtn = document.getElementById('toggle');
     const wash = document.getElementById('wash');
 
@@ -290,8 +305,10 @@
         item.classList.toggle('now', displayStep !== 4 && index === displayStep);
       });
       countEl.textContent = blocks === 1 ? '1 bloco' : blocks + ' blocos';
+      doneEl.classList.toggle('show', blocks >= TOTAL);
       document.documentElement.dataset.blocks = String(blocks);
       document.documentElement.dataset.step = String(step);
+      document.documentElement.dataset.done = blocks >= TOTAL ? '1' : '0';
     }
 
     function audio() {
@@ -319,28 +336,49 @@
       });
     }
 
-    function playChime() {
+    function playChime(final) {
       try {
         const ctx = audio();
-        bell(ctx, 523.25, ctx.currentTime + 0.02, 0.9, 0.16);
+        const now = ctx.currentTime + 0.02;
+        if (!final) {
+          bell(ctx, 523.25, now, 0.9, 0.16);
+          return;
+        }
+        [392, 523.25, 659.25].forEach((freq, index) => {
+          bell(ctx, freq, now + index * 0.28, 1.35, 0.15);
+        });
       } catch (error) {
         console.warn(error);
       }
     }
 
-    function pulse() {
-      wash.classList.remove('on');
+    function pulse(final) {
+      wash.classList.remove('on', 'final');
       void wash.offsetWidth;
       wash.classList.add('on');
+      if (final) wash.classList.add('final');
       clearTimeout(washTimer);
-      washTimer = setTimeout(() => wash.classList.remove('on'), 950);
+      washTimer = setTimeout(() => wash.classList.remove('on', 'final'), final ? 1800 : 950);
     }
 
-    function signal() {
+    function signal(final) {
       chimes += 1;
+      if (final) document.documentElement.dataset.finals = String(Number(document.documentElement.dataset.finals || 0) + 1);
       document.documentElement.dataset.chimes = String(chimes);
-      pulse();
-      playChime();
+      pulse(final);
+      playChime(final);
+    }
+
+    function queueSignals(start, gained) {
+      let delay = 0;
+      for (let i = 1; i <= gained; i += 1) {
+        const blockNumber = start + i;
+        const final = blockNumber === TOTAL;
+        const interval = blockNumber % SIGNAL_EVERY === 0;
+        if (!final && !interval) continue;
+        setTimeout(signal, delay, final);
+        delay += final ? 1700 : 420;
+      }
     }
 
     function armSession() {
@@ -370,15 +408,7 @@
       blocks = Math.max(blocks, newBlocks);
       step = parsed.step;
       committedSessionPhrases = parsed.phrases;
-      if (gained > 0) {
-        let delay = 0;
-        for (let i = 1; i <= gained; i += 1) {
-          const blockNumber = start + i;
-          if (blockNumber % SIGNAL_EVERY !== 0) continue;
-          setTimeout(signal, delay);
-          delay += 420;
-        }
-      }
+      if (gained > 0) queueSignals(start, gained);
       render(step);
     }
 
