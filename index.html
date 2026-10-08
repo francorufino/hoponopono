@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ho'oponopono</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3ecdf;
+      --ink: #2a2420;
+      --muted: #6f655c;
+      --line: rgba(42, 36, 32, 0.14);
+      --paper: #fffaf3;
+      --gold: #8a6232;
+      --wash: rgba(196, 146, 74, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { touch-action: manipulation; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--ink);
+      background:
+        radial-gradient(1100px 480px at 50% -12%, #fffaf3, transparent 58%),
+        var(--bg);
+      font-family: Palatino, "Palatino Linotype", "Iowan Old Style", Georgia, serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection { background: #ead7b8; }
+
+    button { font: inherit; }
+
+    main {
+      width: min(32rem, 100%);
+      margin: 0 auto;
+      padding: max(1.5rem, 7vh) 1.35rem 2.5rem;
+    }
+
+    .kicker, .status, .count, .heard, button {
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    .kicker {
+      margin: 0 0 0.7rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.1rem, 6vw, 2.8rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .lede {
+      margin: 0.85rem 0 0;
+      font-size: 1.12rem;
+      line-height: 1.4;
+    }
+
+    .phrases {
+      list-style: none;
+      margin: 1.6rem 0 0;
+      padding: 0;
+    }
+
+    .phrases li {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      padding: 0.72rem 0;
+      border-bottom: 1px solid var(--line);
+      font-size: clamp(1.85rem, 6.4vw, 2.55rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .phrases i {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      flex: none;
+      box-shadow: inset 0 0 0 1.5px rgba(42, 36, 32, 0.38);
+    }
+
+    .phrases li.done i,
+    .phrases li.now i {
+      box-shadow: none;
+    }
+
+    .phrases li.done i { background: var(--ink); }
+    .phrases li.now i { background: var(--gold); }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 1.4rem 0 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .live {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: var(--line);
+      flex: none;
+    }
+
+    body.listening .live {
+      background: var(--gold);
+      animation: blink 1.4s ease-in-out infinite;
+    }
+
+    .heard {
+      margin: 0.7rem 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.35;
+    }
+
+    .heard:empty { margin: 0; }
+
+    .count {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
+
+    .start {
+      width: 100%;
+      margin-top: 1.3rem;
+      border: 0;
+      border-radius: 999px;
+      padding: 1rem 1.2rem;
+      background: var(--ink);
+      color: #f6f0e6;
+      font-size: 1.05rem;
+      cursor: pointer;
+    }
+
+    .start:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    #wash {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      opacity: 0;
+      background: radial-gradient(circle at 50% 42%, var(--wash), transparent 62%);
+    }
+
+    #wash.on { animation: wash 0.95s ease-out; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    @keyframes wash {
+      0% { opacity: 0.85; }
+      100% { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body.listening .live,
+      #wash.on { animation: none; }
+      body.listening .live { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wash" aria-hidden="true"></div>
+  <main id="app">
+    <p class="kicker">Sinal a cada dez blocos</p>
+    <h1>Ho'oponopono</h1>
+    <p class="lede">Fale as quatro frases, nesta ordem, e siga direto. O sinal soa a cada dez blocos.</p>
+    <ol class="phrases" id="phrases">
+      <li class="now"><i></i>Sinto muito</li>
+      <li><i></i>Me perdoe</li>
+      <li><i></i>Obrigada</li>
+      <li><i></i>Eu te amo</li>
+    </ol>
+    <p class="status"><span class="live" aria-hidden="true"></span><span id="status">Toque em escutar e permita o microfone.</span></p>
+    <p class="heard" id="heard"></p>
+    <p class="count" id="count">0 blocos</p>
+    <button type="button" class="start" id="toggle">Escutar</button>
+  </main>
+  <script>
+    // Fase 2: sinal a cada 10 blocos. No fim, muda para 108.
+    const SIGNAL_EVERY = 10;
+
+    const STEPS = [
+      [/sinto muito/, /cento muito/, /cinco muito/, /cinto muito/, /sinto munto/],
+      [/me perdoe/, /me perdoa/, /me perdao/, /meu perdoe/, /meu perdoa/, /perdoe me/, /perdoa me/, /\bperdoe\b/, /\bperdoa\b/, /\bperdoem\b/],
+      [/obrigada/, /obrigado/, /\bbrigada\b/, /\bbrigado\b/],
+      [/eu te amo/, /eu ti amo/, /te amo/, /ti amo/]
+    ];
+
+    const items = Array.from(document.querySelectorAll('#phrases li'));
+    const statusEl = document.getElementById('status');
+    const heardEl = document.getElementById('heard');
+    const countEl = document.getElementById('count');
+    const toggleBtn = document.getElementById('toggle');
+    const wash = document.getElementById('wash');
+
+    let step = 0;
+    let blocks = 0;
+    let chimes = 0;
+    let listening = false;
+    let audioCtx = null;
+    let washTimer = 0;
+    let restartTimer = 0;
+    let commitTimer = 0;
+    let recognition = null;
+    let sessionStep = 0;
+    let sessionBlocks = 0;
+    let committedSessionPhrases = 0;
+    let liveText = '';
+
+    function normalize(text) {
+      return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function findMatch(text, patterns) {
+      let best = null;
+      patterns.forEach((pattern) => {
+        pattern.lastIndex = 0;
+        const found = pattern.exec(text);
+        if (!found || !found[0]) return;
+        const start = found.index;
+        const end = start + found[0].length;
+        if (!best || start < best.start) best = { start, end };
+      });
+      return best;
+    }
+
+    function consumeAll(text, fromStep) {
+      let buf = text.trim();
+      let at = fromStep;
+      let blocksGained = 0;
+      let phrases = 0;
+      let guard = 0;
+      while (guard < 600) {
+        guard += 1;
+        const match = findMatch(buf, STEPS[at]);
+        if (!match) break;
+        buf = buf.slice(match.end).trim();
+        at += 1;
+        phrases += 1;
+        if (at === 4) {
+          blocksGained += 1;
+          at = 0;
+        }
+      }
+      if (buf.length > 300) buf = buf.slice(-120);
+      return { buf, step: at, blocksGained, phrases };
+    }
+
+    function render(displayStep) {
+      const filled = displayStep === 4 ? 4 : displayStep;
+      items.forEach((item, index) => {
+        item.classList.toggle('done', index < filled);
+        item.classList.toggle('now', displayStep !== 4 && index === displayStep);
+      });
+      countEl.textContent = blocks === 1 ? '1 bloco' : blocks + ' blocos';
+      document.documentElement.dataset.blocks = String(blocks);
+      document.documentElement.dataset.step = String(step);
+    }
+
+    function audio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function bell(ctx, freq, when, dur, peak) {
+      const master = ctx.createGain();
+      master.connect(ctx.destination);
+      master.gain.setValueAtTime(0.0001, when);
+      master.gain.exponentialRampToValueAtTime(peak, when + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      [1, 2.01, 2.97].forEach((mult, index) => {
+        const osc = ctx.createOscillator();
+        const partial = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * mult, when);
+        partial.gain.value = [1, 0.22, 0.08][index];
+        osc.connect(partial);
+        partial.connect(master);
+        osc.start(when);
+        osc.stop(when + dur + 0.03);
+      });
+    }
+
+    function playChime() {
+      try {
+        const ctx = audio();
+        bell(ctx, 523.25, ctx.currentTime + 0.02, 0.9, 0.16);
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    function pulse() {
+      wash.classList.remove('on');
+      void wash.offsetWidth;
+      wash.classList.add('on');
+      clearTimeout(washTimer);
+      washTimer = setTimeout(() => wash.classList.remove('on'), 950);
+    }
+
+    function signal() {
+      chimes += 1;
+      document.documentElement.dataset.chimes = String(chimes);
+      pulse();
+      playChime();
+    }
+
+    function armSession() {
+      sessionStep = step;
+      sessionBlocks = blocks;
+      committedSessionPhrases = 0;
+      liveText = '';
+    }
+
+    function tail(text) {
+      const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+      return words.slice(-12).join(' ');
+    }
+
+    function showHeard(text) {
+      const clean = tail(text);
+      heardEl.textContent = clean ? 'Ouvi: ' + clean : '';
+    }
+
+    function commitLive() {
+      if (!liveText) return;
+      const parsed = consumeAll(normalize(liveText), sessionStep);
+      if (parsed.phrases <= committedSessionPhrases) return;
+      const newBlocks = sessionBlocks + parsed.blocksGained;
+      const gained = newBlocks - blocks;
+      const start = blocks;
+      blocks = Math.max(blocks, newBlocks);
+      step = parsed.step;
+      committedSessionPhrases = parsed.phrases;
+      if (gained > 0) {
+        let delay = 0;
+        for (let i = 1; i <= gained; i += 1) {
+          const blockNumber = start + i;
+          if (blockNumber % SIGNAL_EVERY !== 0) continue;
+          setTimeout(signal, delay);
+          delay += 420;
+        }
+      }
+      render(step);
+    }
+
+    function onTranscript(raw) {
+      const clean = raw.replace(/\s+/g, ' ').trim();
+      if (!clean) return;
+      liveText = clean;
+      showHeard(clean);
+      const parsed = consumeAll(normalize(clean), sessionStep);
+      if (parsed.phrases >= committedSessionPhrases) render(parsed.step);
+      if (parsed.phrases > committedSessionPhrases) {
+        clearTimeout(commitTimer);
+        commitTimer = setTimeout(commitLive, 40);
+      }
+    }
+
+    function startListening() {
+      if (!recognition) return;
+      listening = true;
+      document.body.classList.add('listening');
+      toggleBtn.textContent = 'Parar';
+      statusEl.textContent = 'Ouvindo';
+      audio();
+      try {
+        recognition.start();
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    function stopListening() {
+      listening = false;
+      document.body.classList.remove('listening');
+      toggleBtn.textContent = 'Escutar';
+      statusEl.textContent = 'Parado';
+      clearTimeout(restartTimer);
+      clearTimeout(commitTimer);
+      commitLive();
+      try {
+        recognition.stop();
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    function setupRecognition() {
+      const SpeechApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechApi) {
+        statusEl.textContent = 'Abra esta página no Chrome para eu conseguir escutar.';
+        toggleBtn.disabled = true;
+        return;
+      }
+      recognition = new SpeechApi();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        armSession();
+      };
+
+      recognition.onresult = (event) => {
+        let text = '';
+        for (let i = 0; i < event.results.length; i += 1) {
+          const result = event.results[i];
+          if (result[0]) text += ' ' + result[0].transcript;
+        }
+        onTranscript(text);
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          listening = false;
+          document.body.classList.remove('listening');
+          toggleBtn.textContent = 'Escutar';
+          statusEl.textContent = 'Permita o microfone neste site e toque em escutar de novo.';
+          return;
+        }
+        if (event.error === 'network') {
+          statusEl.textContent = 'A escuta precisa de internet. Confira a conexão e toque em escutar.';
+        }
+      };
+
+      recognition.onend = () => {
+        clearTimeout(commitTimer);
+        commitLive();
+        if (!listening) return;
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          if (!listening) return;
+          try {
+            recognition.start();
+          } catch (error) {
+            console.warn(error);
+          }
+        }, 80);
+      };
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      if (listening) stopListening();
+      else startListening();
+    });
+
+    setupRecognition();
+    render(0);
+  </script>
+</body>
+</html>
